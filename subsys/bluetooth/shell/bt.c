@@ -1908,7 +1908,7 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 	size_t ad_len = 0;
 	size_t sd_len = 0;
 	bool discoverable = false;
-	size_t *data_len;
+	size_t data_len = 0;
 	int err;
 
 	if (!adv) {
@@ -1917,13 +1917,12 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 
 	hex_data_len = 0;
 	data = ad;
-	data_len = &ad_len;
 
 	for (size_t argn = 1; argn < argc; argn++) {
 		const char *arg = argv[argn];
 
 		if (strcmp(arg, "scan-response") &&
-		    *data_len == ARRAY_SIZE(ad)) {
+		    data_len == ARRAY_SIZE(ad)) {
 			/* Maximum entries limit reached. */
 			shell_print(sh, "Failed to set advertising data: "
 					   "Maximum entries limit reached");
@@ -1945,7 +1944,7 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 			}
 
 			data = sd;
-			data_len = &sd_len;
+			data_len = sd_len;
 		} else {
 			size_t len;
 
@@ -1958,10 +1957,10 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 				return -ENOEXEC;
 			}
 
-			data[*data_len].type = hex_data[hex_data_len + 1];
-			data[*data_len].data_len = len - 2;
-			data[*data_len].data = &hex_data[hex_data_len + 2];
-			(*data_len)++;
+			data[data_len].type = hex_data[hex_data_len + 1];
+			data[data_len].data_len = len - 2;
+			data[data_len].data = &hex_data[hex_data_len + 2];
+			data_len++;
 			hex_data_len += len;
 		}
 	}
@@ -1970,7 +1969,7 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 	atomic_set_bit_to(adv_set_opt[selected_adv], SHELL_ADV_OPT_APPEARANCE,
 			  appearance);
 
-	ad_len = ad_init(&ad[*data_len], ARRAY_SIZE(ad) - *data_len,
+	ad_len = ad_init(&ad[data_len], ARRAY_SIZE(ad) - data_len,
 			 adv_set_opt[selected_adv]);
 	if (ad_len < 0) {
 		shell_error(sh, "Failed to initialize stack advertising data");
@@ -1978,7 +1977,7 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 		return -ENOEXEC;
 	}
 
-	ad_len += *data_len;
+	ad_len += data_len;
 
 	err = bt_le_ext_adv_set_data(adv, ad_len > 0 ? ad : NULL, ad_len,
 					  sd_len > 0 ? sd : NULL, sd_len);
